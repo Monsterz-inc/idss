@@ -1,0 +1,15 @@
+pandas
+numpy
+scikit-learn
+pulp
+stable-baselines3
+gymnasium
+torch
+networkx
+lime
+shap
+fastapi
+uvicorn
+matplotlib
+pyarrow
+python-dotenv

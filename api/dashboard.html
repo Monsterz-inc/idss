@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IDSS Live Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', sans-serif; font-size: 13px; }
+
+  header {
+    background: #161b22; border-bottom: 1px solid #30363d;
+    padding: 12px 24px; display: flex; align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 16px; color: #58a6ff; font-weight: 600; }
+  header .meta { color: #8b949e; font-size: 11px; margin-top: 2px; }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 10px; font-weight: 600; margin-left: 6px;
+  }
+  .badge-green  { background: #1a4731; color: #3fb950; }
+  .badge-red    { background: #4a1515; color: #f85149; }
+  .badge-yellow { background: #3d2e00; color: #d29922; }
+  .badge-blue   { background: #1a2f5a; color: #58a6ff; }
+  .badge-purple { background: #2d1a4a; color: #a371f7; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px; padding: 16px;
+  }
+
+  .card {
+    background: #161b22; border: 1px solid #30363d;
+    border-radius: 8px; padding: 14px;
+  }
+  .card h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: #8b949e; margin-bottom: 10px; font-weight: 600;
+  }
+
+  .metrics { grid-column: 1 / -1; display: flex; gap: 12px; }
+  .metric-box {
+    flex: 1; background: #161b22; border: 1px solid #30363d;
+    border-radius: 8px; padding: 14px; text-align: center;
+  }
+  .metric-box .val {
+    font-size: 28px; font-weight: 700; color: #58a6ff; line-height: 1;
+  }
+  .metric-box .lbl { font-size: 10px; color: #8b949e; margin-top: 4px; }
+
+  .resource-row { margin-bottom: 8px; }
+  .resource-row .top {
+    display: flex; justify-content: space-between;
+    margin-bottom: 3px; font-size: 11px;
+  }
+  .bar-track {
+    background: #21262d; border-radius: 4px; height: 10px; overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.8s ease, background 0.5s;
+  }
+
+  #gantt { overflow-x: auto; }
+  .gantt-row {
+    display: flex; align-items: center;
+    border-bottom: 1px solid #21262d; padding: 4px 0; font-size: 11px;
+  }
+  .gantt-label { width: 80px; color: #8b949e; flex-shrink: 0; }
+  .gantt-bar {
+    height: 18px; border-radius: 3px; margin: 0 1px;
+    display: inline-flex; align-items: center;
+    padding: 0 4px; font-size: 9px; color: #fff;
+    white-space: nowrap; overflow: hidden;
+    position: absolute;
+  }
+
+  #alert-list { max-height: 220px; overflow-y: auto; }
+  .alert-item {
+    padding: 7px 10px; border-radius: 5px; margin-bottom: 6px;
+    font-size: 11px; border-left: 3px solid;
+  }
+  .alert-high   { background: #2d1515; border-color: #f85149; }
+  .alert-medium { background: #2d2200; border-color: #d29922; }
+  .alert-info   { background: #0d2136; border-color: #58a6ff; }
+  .alert-time   { float: right; color: #8b949e; font-size: 10px; }
+
+  #xai-box { max-height: 220px; overflow-y: auto; }
+  .xai-reason {
+    padding: 5px 8px; margin-bottom: 4px; border-radius: 4px;
+    background: #21262d; font-size: 11px; line-height: 1.5;
+  }
+  .xai-reason.sla-ok  { border-left: 3px solid #3fb950; }
+  .xai-reason.sla-bad { border-left: 3px solid #f85149; }
+
+  #forecast-chart { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
+  .fc-bar {
+    flex: 1; border-radius: 3px 3px 0 0;
+    background: #1a3a6b; transition: height 0.5s;
+  }
+  .fc-bar:hover { background: #58a6ff; }
+
+  #override-panel {
+    display: none; background: #1a2f1a; border: 1px solid #3fb950;
+    border-radius: 8px; padding: 14px; grid-column: 1 / -1;
+    margin-top: 0;
+  }
+  #override-panel h2 {
+    color: #3fb950; margin-bottom: 8px;
+    font-size: 13px; font-weight: 600;
+  }
+  #override-panel p { font-size: 11px; color: #8b949e; margin-bottom: 10px; }
+  #override-panel select, #override-panel input {
+    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
+    padding: 6px 10px; border-radius: 4px; margin-right: 8px; font-size: 12px;
+  }
+
+  button {
+    padding: 6px 14px; border-radius: 4px; border: none;
+    font-size: 12px; cursor: pointer; font-weight: 600;
+  }
+  .btn-green { background: #238636; color: #fff; }
+  .btn-green:hover { background: #2ea043; }
+  .btn-red   { background: #b62324; color: #fff; }
+  .btn-red:hover { background: #da3633; }
+
+  #domain-select {
+    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
+    padding: 5px 10px; border-radius: 6px; font-size: 11px;
+    cursor: pointer; outline: none;
+  }
+  #domain-select:focus { border-color: #58a6ff; }
+
+  .domain-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 10px; margin-left: 6px; text-transform: uppercase;
+  }
+  .domain-cloud         { background: #1a2f5a; color: #58a6ff; }
+  .domain-manufacturing { background: #2d1a00; color: #f78166; }
+  .domain-logistics     { background: #1a3d1a; color: #3fb950; }
+
+  .sim-time { font-size: 11px; color: #8b949e; margin-top: 3px; }
+
+  #status-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; background: #3fb950;
+    margin-right: 6px; animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+  }
+
+  .header-right {
+    display: flex; align-items: center; gap: 16px; text-align: right;
+  }
+  .domain-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .domain-label { font-size: 10px; color: #8b949e; margin-bottom: 2px; }
+  .tick-info { display: flex; align-items: center; gap: 6px; }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #0d1117; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>
+      <span id="status-dot"></span>
+      IDSS &mdash; Intelligent Decision Support System
+    </h1>
+    <div class="meta">
+      Nwanze Christian Uche &nbsp;|&nbsp; 22/11017 &nbsp;|&nbsp; Caleb University
+      <span id="domain-indicator" class="domain-badge domain-cloud">Cloud</span>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="domain-controls">
+      <div class="domain-label">ACTIVE DOMAIN</div>
+      <select id="domain-select" onchange="switchDomain()">
+        <option value="cloud">Cloud Scheduling</option>
+        <option value="manufacturing">Manufacturing</option>
+        <option value="logistics">Logistics</option>
+      </select>
+    </div>
+    <div>
+      <div class="tick-info">
+        <span class="badge badge-green">LIVE</span>
+        <span class="badge badge-blue" id="tick-badge">Tick 0</span>
+      </div>
+      <div class="sim-time" id="sim-time">Sim time: 0s</div>
+    </div>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric-box">
+      <div class="val" id="m-total">0</div>
+      <div class="lbl">Tasks Arrived</div>
+    </div>
+    <div class="metric-box">
+      <div class="val" id="m-scheduled">0</div>
+      <div class="lbl">Tasks Scheduled</div>
+    </div>
+    <div class="metric-box">
+      <div class="val" id="m-queue">0</div>
+      <div class="lbl">Queue Length</div>
+    </div>
+    <div class="metric-box">
+      <div class="val" id="m-sla" style="color:#f85149">0</div>
+      <div class="lbl">SLA Violations</div>
+    </div>
+    <div class="metric-box">
+      <div class="val" id="m-energy" style="color:#d29922">0</div>
+      <div class="lbl">Energy (kWh)</div>
+    </div>
+  </div>
+
+  <!-- Resource Utilisation -->
+  <div class="card">
+    <h2>Resource Utilisation</h2>
+    <div id="resource-bars"></div>
+  </div>
+
+  <!-- Live Gantt -->
+  <div class="card" style="grid-column: 2 / 4;">
+    <h2>Live Schedule (last 20 tasks)</h2>
+    <div id="gantt"></div>
+  </div>
+
+  <!-- Forecast -->
+  <div class="card">
+    <h2>Arrival Rate Forecast</h2>
+    <div id="forecast-chart"></div>
+    <div style="margin-top:8px; font-size:11px; color:#8b949e">
+      Predicted next window:
+      <span id="fc-rate" style="color:#58a6ff">...</span> tasks
+      &nbsp;|&nbsp;
+      Avg duration: <span id="fc-dur" style="color:#58a6ff">...</span>s
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div class="card">
+    <h2>Anomaly Alerts &amp; Re-schedule Events</h2>
+    <div id="alert-list">
+      <div style="color:#8b949e">Monitoring...</div>
+    </div>
+  </div>
+
+  <!-- XAI -->
+  <div class="card">
+    <h2>Latest Scheduling Explanation (LIME/SHAP)</h2>
+    <div id="xai-box">
+      <div style="color:#8b949e">Waiting for first decision...</div>
+    </div>
+  </div>
+
+  <!-- Human Override Panel -->
+  <div id="override-panel">
+    <h2>!! Human Override Required</h2>
+    <p>
+      The system has flagged a high-priority event.
+      You can override the resource assignment below.
+    </p>
+    <input id="ov-task" type="text" placeholder="Task ID" style="width:120px"/>
+    <select id="ov-resource"></select>
+    <button class="btn-green" onclick="sendOverride()">Confirm Override</button>
+    <button class="btn-red"   onclick="closeOverride()">Dismiss</button>
+    <span id="override-result"
+          style="margin-left:12px; font-size:11px; color:#3fb950"></span>
+  </div>
+
+</div>
+
+<script>
+  const WS_URL = 'ws://127.0.0.1:8000/ws';
+  let ws;
+  let forecastHistory = [];
+  let lastState       = null;
+  let overrideShown   = false;
+
+  const GANTT_COLORS = [
+    '#1a6b3a','#1a3a6b','#6b1a1a',
+    '#6b5c1a','#4a1a6b','#1a5f6b'
+  ];
+
+  const DOMAIN_META = {
+    cloud:         { label: 'Cloud',         cls: 'domain-cloud'         },
+    manufacturing: { label: 'Manufacturing', cls: 'domain-manufacturing' },
+    logistics:     { label: 'Logistics',     cls: 'domain-logistics'     },
+  };
+
+  // ── WebSocket connection ─────────────────────────────────────────
+  function connect() {
+    ws = new WebSocket(WS_URL);
+    ws.onopen    = () => console.log('WebSocket connected');
+    ws.onmessage = e => {
+      const d = JSON.parse(e.data);
+      if (d.override_result) {
+        document.getElementById('override-result').textContent =
+          d.override_result.message;
+        return;
+      }
+      lastState = d;
+      update(d);
+    };
+    ws.onclose = () => {
+      console.log('WS closed, reconnecting...');
+      setTimeout(connect, 2000);
+    };
+    ws.onerror  = () => ws.close();
+  }
+
+  // ── Main update function ─────────────────────────────────────────
+  function update(d) {
+
+    // Metrics
+    document.getElementById('m-total').textContent
+      = d.total_tasks     || 0;
+    document.getElementById('m-scheduled').textContent
+      = d.total_scheduled || 0;
+    document.getElementById('m-queue').textContent
+      = d.queue_length    || 0;
+    document.getElementById('m-sla').textContent
+      = d.sla_violations  || 0;
+    document.getElementById('m-energy').textContent
+      = (d.total_energy   || 0).toFixed(1);
+    document.getElementById('tick-badge').textContent
+      = 'Tick ' + (d.tick || 0);
+    document.getElementById('sim-time').textContent
+      = 'Sim time: ' + (d.sim_time || 0) + 's';
+
+    // Domain indicator
+    if (d.domain) {
+      const meta = DOMAIN_META[d.domain] || DOMAIN_META.cloud;
+      const ind  = document.getElementById('domain-indicator');
+      ind.textContent = meta.label;
+      ind.className   = 'domain-badge ' + meta.cls;
+      document.getElementById('domain-select').value = d.domain;
+    }
+
+    // Resource bars
+    if (d.resources) {
+      const el = document.getElementById('resource-bars');
+      el.innerHTML = d.resources.map(r => {
+        const pct    = Math.round(r.load * 100);
+        const color  = !r.available
+          ? '#6e7681'
+          : pct > 80 ? '#f85149'
+          : pct > 50 ? '#d29922'
+          : '#3fb950';
+        const offBadge = r.available
+          ? ''
+          : ' <span class="badge badge-red">OFFLINE</span>';
+        return `
+          <div class="resource-row">
+            <div class="top">
+              <span>${r.id}${offBadge}</span>
+              <span style="color:${color}">${pct}%</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill"
+                   style="width:${pct}%;background:${color}">
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // Gantt chart
+    if (d.schedule_log && d.schedule_log.length > 0) {
+      const log       = d.schedule_log;
+      const resources = [...new Set(log.map(e => e.resource_id))];
+      const minT      = Math.min(...log.map(e => e.start_time));
+      const maxT      = Math.max(...log.map(e => e.end_time));
+      const range     = maxT - minT || 1;
+      const gantt     = document.getElementById('gantt');
+
+      gantt.innerHTML = resources.map((rid, ri) => {
+        const bars = log
+          .filter(e => e.resource_id === rid)
+          .map(e => {
+            const left  = ((e.start_time - minT) / range * 100).toFixed(1);
+            const width = Math.max(2,
+              ((e.end_time - e.start_time) / range * 100)
+            ).toFixed(1);
+            const color = GANTT_COLORS[ri % GANTT_COLORS.length];
+            return `<div class="gantt-bar"
+              style="left:${left}%;width:${width}%;background:${color}"
+              title="${e.task_id}">${e.task_id}</div>`;
+          }).join('');
+
+        return `
+          <div class="gantt-row">
+            <div class="gantt-label">${rid}</div>
+            <div style="flex:1;position:relative;height:22px">
+              ${bars}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // Forecast chart
+    if (d.forecast) {
+      forecastHistory.push(d.forecast.arrival_rate || 0);
+      if (forecastHistory.length > 12) forecastHistory.shift();
+      const maxF = Math.max(...forecastHistory, 1);
+      const fc   = document.getElementById('forecast-chart');
+      fc.innerHTML = forecastHistory.map(v => {
+        const h = Math.max(4, Math.round((v / maxF) * 76));
+        return `<div class="fc-bar"
+                  style="height:${h}px"
+                  title="${v} tasks"></div>`;
+      }).join('');
+      document.getElementById('fc-rate').textContent
+        = d.forecast.arrival_rate;
+      document.getElementById('fc-dur').textContent
+        = d.forecast.mean_duration;
+    }
+
+    // Alert panel
+    if (d.recent_alerts && d.recent_alerts.length > 0) {
+      const al  = document.getElementById('alert-list');
+      const cls = {
+        high:   'alert-high',
+        medium: 'alert-medium',
+        info:   'alert-info',
+      };
+      al.innerHTML = [...d.recent_alerts].reverse().map(a => {
+        const label = a.type.replace(/_/g, ' ').toUpperCase();
+        const t     = a.time !== undefined
+          ? Math.round(a.time) + 's' : '';
+        return `
+          <div class="alert-item ${cls[a.severity] || 'alert-info'}">
+            <span class="alert-time">${t}</span>
+            <strong>${label}</strong><br/>${a.message}
+          </div>`;
+      }).join('');
+
+      // Show override panel on first high-severity alert
+      const high = d.recent_alerts.find(a => a.severity === 'high');
+      if (high && !overrideShown) {
+        showOverride(high);
+        overrideShown = true;
+      }
+    }
+
+    // XAI explanation
+    if (d.new_scheduled && d.new_scheduled.length > 0) {
+      const last = d.new_scheduled[d.new_scheduled.length - 1];
+      if (last && last.explanation) {
+        const xai = document.getElementById('xai-box');
+        const sla = last.sla_met;
+        xai.innerHTML =
+          `<div style="margin-bottom:6px;font-size:11px">
+            <strong style="color:#58a6ff">${last.task_id}</strong>
+            &rarr;
+            <strong>${last.resource_id}</strong>
+            <span class="badge ${sla ? 'badge-green' : 'badge-red'}"
+                  style="margin-left:4px">
+              ${sla ? 'SLA MET' : 'SLA VIOLATED'}
+            </span>
+          </div>` +
+          (last.explanation.reasons || []).map(r =>
+            `<div class="xai-reason ${sla ? 'sla-ok' : 'sla-bad'}">${r}</div>`
+          ).join('');
+      }
+    }
+  }
+
+  // ── Override panel ───────────────────────────────────────────────
+  function showOverride(alert) {
+    const panel = document.getElementById('override-panel');
+    panel.style.display = 'block';
+    document.getElementById('override-result').textContent = '';
+
+    if (alert.task_id) {
+      document.getElementById('ov-task').value = alert.task_id;
+    }
+
+    fetch('/state')
+      .then(r => r.json())
+      .then(s => {
+        const sel   = document.getElementById('ov-resource');
+        const avail = (s.resources || []).filter(r => r.available);
+        // Sort least loaded first
+        avail.sort((a, b) => a.load - b.load);
+        sel.innerHTML = avail.map(r =>
+          `<option value="${r.id}">
+            ${r.id} (load: ${Math.round(r.load * 100)}%)
+          </option>`
+        ).join('');
+      });
+  }
+
+  function sendOverride() {
+    const task_id     = document.getElementById('ov-task').value.trim();
+    const resource_id = document.getElementById('ov-resource').value;
+    if (!task_id || !resource_id) return;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        action: 'override', task_id, resource_id
+      }));
+    }
+    document.getElementById('override-result').textContent =
+      'Override sent for ' + task_id + ' to ' + resource_id;
+    overrideShown = false;
+    closeOverride();
+  }
+
+  function closeOverride() {
+    document.getElementById('override-panel').style.display = 'none';
+    overrideShown = false;
+  }
+
+  // ── Domain switcher ──────────────────────────────────────────────
+  function switchDomain() {
+    const domain = document.getElementById('domain-select').value;
+
+    fetch('/switch-domain', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ domain }),
+    })
+    .then(r => r.json())
+    .then(result => {
+      if (result.success) {
+        // Reset UI for new domain
+        forecastHistory = [];
+        overrideShown   = false;
+
+        document.getElementById('gantt').innerHTML       = '';
+        document.getElementById('resource-bars').innerHTML = '';
+        document.getElementById('forecast-chart').innerHTML = '';
+        document.getElementById('override-panel').style.display = 'none';
+
+        document.getElementById('alert-list').innerHTML =
+          `<div style="color:#8b949e">
+            Switched to ${domain} &mdash; monitoring...
+          </div>`;
+        document.getElementById('xai-box').innerHTML =
+          '<div style="color:#8b949e">Waiting for first decision...</div>';
+
+        // Reset metrics
+        document.getElementById('m-total').textContent     = '0';
+        document.getElementById('m-scheduled').textContent = '0';
+        document.getElementById('m-queue').textContent     = '0';
+        document.getElementById('m-sla').textContent       = '0';
+        document.getElementById('m-energy').textContent    = '0';
+
+        const meta = DOMAIN_META[domain] || DOMAIN_META.cloud;
+        const ind  = document.getElementById('domain-indicator');
+        ind.textContent = meta.label;
+        ind.className   = 'domain-badge ' + meta.cls;
+
+        console.log('Domain switched to:', domain);
+      }
+    });
+  }
+
+  // ── Start ────────────────────────────────────────────────────────
+  connect();
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+.venv/
+venv/
+ENV/
+env/
+.python-version
+.ipynb_checkpoints/
+.DS_Store
+*.log
+*.sqlite3
+*.db
+*.egg-info/
+dist/
+build/
+coverage.xml
+htmlcov/
+*.pytest_cache/
+*.cache/
+*.pot
+*.mo
+*.prof
+*.orig
+
+# Virtual environment
+env/
+venv/
+.venv/
+
+# Jupyter notebooks
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Data files
+data/raw/
+data/processed/*.parquet
+outputs/
+logs/
+
+# Model artifacts
+models/predictive/*.pkl
+models/drl/*.zip
