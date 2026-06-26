@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import asyncio
 import json
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -130,14 +130,25 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # ── REST endpoints ────────────────────────────────────────────────
 @app.get("/")
-def root():
+def root(request: Request):
+    # Build a dashboard URL that works when running behind a proxy/host
+    # Prefer an explicit EXTERNAL_URL env var if set (useful for platforms like Render)
+    external = os.environ.get("EXTERNAL_URL")
+    if external:
+        dashboard_url = external.rstrip("/") + "/dashboard"
+    else:
+        try:
+            dashboard_url = str(request.url_for("dashboard"))
+        except Exception:
+            dashboard_url = "/dashboard"
+
     return {
         "system":    "IDSS",
         "version":   "1.0.0",
         "author":    "Nwanze Christian Uche — 22/11017",
         "status":    "online",
         "ppo_ready": PPO_READY,
-        "dashboard": "http://127.0.0.1:8000/dashboard",
+        "dashboard": dashboard_url,
     }
 
 @app.get("/health")
