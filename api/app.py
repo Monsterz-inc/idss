@@ -98,6 +98,34 @@ async def simulation_loop():
 
 @app.on_event("startup")
 async def startup():
+    # If a model URL is provided, attempt to download the PPO model before starting
+    ppo_url = os.environ.get("PPO_MODEL_URL")
+    model_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'models', 'drl', 'ppo_idss.zip'))
+    if ppo_url and not os.path.exists(model_path):
+        try:
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            import urllib.request
+            print(f"Downloading PPO model from {ppo_url} ...")
+            urllib.request.urlretrieve(ppo_url, model_path)
+            print("PPO model downloaded.")
+        except Exception as e:
+            print("Failed to download PPO model:", e)
+
+    # Try loading the model (may already be present)
+    global ppo_model, PPO_READY
+    try:
+        ppo_model = load_ppo()
+        PPO_READY = True
+        # If the simulation engine exists, update it too
+        try:
+            engine.ppo = ppo_model
+            engine.ppo_ready = True
+        except Exception:
+            pass
+        print("PPO model loaded into application.")
+    except Exception as e:
+        print("PPO model not available at startup:", e)
+
     asyncio.create_task(simulation_loop())
 
 # ── Dashboard HTML ────────────────────────────────────────────────
